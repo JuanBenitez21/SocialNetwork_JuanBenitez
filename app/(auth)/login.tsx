@@ -1,15 +1,14 @@
 import { AuthContext } from "@/contexts/AuthContext";
 import { useRouter } from "expo-router";
-import React, { useContext } from "react";
-import { Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useContext, useState } from "react";
+import { Alert, Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export default function EntryPoint() {
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const context = useContext(AuthContext);
   const router = useRouter();
 
-  // Functions for navigation
   const goToRegister = () => {
     router.navigate('/register');
   };
@@ -18,8 +17,14 @@ export default function EntryPoint() {
     router.navigate('/recover');
   };
   
-  const handleLogin = () => {
-    if (context.login(username, password)) {
+  const handleLogin = async () => {
+    // Aquí puedes agregar validaciones para los campos
+    if (email.trim() === "" || password.trim() === "") {
+        Alert.alert("Error", "Por favor, ingresa tu correo y contraseña.");
+        return;
+    }
+    const success = await context.login(email, password);
+    if (success) {
       router.navigate('/(main)/home');
     }
   };
@@ -37,14 +42,15 @@ export default function EntryPoint() {
 
         {/* Inputs */}
         <TextInput
-          placeholder="Username"
+          placeholder="Correo Electrónico"
           placeholderTextColor="#aaa"
           style={styles.input}
-          value={username}
-          onChangeText={setUsername}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
         />
         <TextInput
-          placeholder="Password"
+          placeholder="Contraseña"
           placeholderTextColor="#aaa"
           secureTextEntry
           style={styles.input}

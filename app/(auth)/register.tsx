@@ -1,16 +1,42 @@
+import { AuthContext } from "@/contexts/AuthContext";
+import { User } from "@/types/common.type";
 import { useRouter } from "expo-router";
-import React from "react";
-import { Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useContext, useState } from "react";
+import { Alert, Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export default function EntryPoint() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const context = useContext(AuthContext);
   const router = useRouter();
 
   const goToLogin = () => {
     router.navigate('/login');
   };
 
-  const goToProfile = () => {
-    router.navigate('./main/profile'); // La ruta al perfil
+  const handleRegister = async () => {
+    // Aquí puedes agregar validaciones para los campos
+    if (email.trim() === "" || password.trim() === "" || username.trim() === "") {
+        Alert.alert("Error", "Por favor, llena todos los campos.");
+        return;
+    }
+
+    const newUser: User = {
+      email,
+      username,
+      name: username, // <-- ¡CORREGIDO! Usar el valor del username como nombre
+      lastName: "",
+      age: 0,
+    };
+    
+    const success = await context.register(newUser, password);
+    if (success) {
+      router.navigate('/(main)/home'); // Redirige a la página principal después de registrarse
+    }
+    else {
+      Alert.alert("Error", "No se pudo registrar al usuario. Por favor, intenta de nuevo.");
+    }
   };
 
   return (
@@ -29,21 +55,28 @@ export default function EntryPoint() {
           placeholder="Nombre de Usuario"
           placeholderTextColor="#aaa"
           style={styles.input}
+          value={username}
+          onChangeText={setUsername}
         />
         <TextInput
           placeholder="Correo electrónico"
           placeholderTextColor="#aaa"
           style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
         />
         <TextInput
           placeholder="Contraseña"
           placeholderTextColor="#aaa"
           secureTextEntry
           style={styles.input}
+          value={password}
+          onChangeText={setPassword}
         />
 
         {/* Botón de registro */}
-        <TouchableOpacity style={styles.button} onPress={goToProfile}>
+        <TouchableOpacity style={styles.button} onPress={handleRegister}>
           <Text style={styles.buttonText}>REGISTRARME</Text>
         </TouchableOpacity>
 

@@ -1,26 +1,45 @@
 import { User } from "@/types/common.type";
 import { supabase } from "@/utils/supabase";
 import { createContext, useState } from "react";
- 
+
+/**
+ * AuthContext interface defining the authentication and user management methods
+ */
 interface AuthContextProps {
+    /** Current authenticated user object or null if not logged in */
     user: User | null,
+    /** Authenticate user with email and password */
     login: (email: string, password: string) => Promise<boolean>,
+    /** Register new user with profile data and password */
     register: (user: User, password: string) => Promise<boolean>,
+    /** Update user profile information */
     updateProfile: (profileData: Partial<User>) => Promise<boolean>,
+    /** Set user state manually */
     setUser: (user: User | null) => void
 }
- 
+
+/**
+ * Authentication Context for managing user state and auth operations
+ * Provides login, registration, and profile update functionality
+ */
 export const AuthContext = createContext({} as AuthContextProps);
- 
- 
+
+/**
+ * AuthProvider component that wraps the app with authentication context
+ * @param children - React children components
+ */
 export const AuthProvider = ({ children }: any) => {
- 
-    // varibles
-    // USER -> { email:string, password:string, name:string}
+
+    /** Current user state - contains user profile data when authenticated */
     const [user, setUser] = useState(null as any);
- 
-    // funciones
- 
+
+    /**
+     * Authenticate user with email and password
+     * Fetches complete user profile from database after successful auth
+     * @param email - User's email address
+     * @param password - User's password
+     * @returns Promise<boolean> - True if login successful, false otherwise
+     */
     const login = async (email: string, password: string) => {
         try {
             // Authenticate with Supabase Auth
@@ -61,7 +80,7 @@ export const AuthProvider = ({ children }: any) => {
             return false;
         }
     }
- 
+
     const register = async (user: User, password: string) => {
         try {
             const { data, error } = await supabase.auth.signUp({
@@ -140,6 +159,7 @@ export const AuthProvider = ({ children }: any) => {
             return false;
         }
     };
+
     return <AuthContext.Provider
         value={{
             user,
@@ -151,5 +171,5 @@ export const AuthProvider = ({ children }: any) => {
     >
         {children}
     </AuthContext.Provider>
- 
+
 }
