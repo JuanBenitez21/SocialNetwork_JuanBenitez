@@ -1,11 +1,15 @@
-import { useRouter } from "expo-router"; // <-- Importamos useRouter
-import React from "react";
+import { AuthContext } from "@/contexts/AuthContext";
+import { useRouter } from "expo-router";
+import React, { useContext } from "react";
 import { Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export default function EntryPoint() {
-  const router = useRouter(); // <-- Inicializamos el hook
+  const [username, setUsername] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const context = useContext(AuthContext);
+  const router = useRouter();
 
-  // Funciones para la navegación
+  // Functions for navigation
   const goToRegister = () => {
     router.navigate('/register');
   };
@@ -13,12 +17,12 @@ export default function EntryPoint() {
   const goToRecover = () => {
     router.navigate('/recover');
   };
-
-  // Por ahora, el login redirigirá al perfil
-  const goToProfile = () => {
-    router.navigate('/profile'); // La ruta al perfil
-  };
   
+  const handleLogin = () => {
+    if (context.login(username, password)) {
+      router.navigate('/(main)/home');
+    }
+  };
 
   return (
     <ImageBackground
@@ -27,7 +31,7 @@ export default function EntryPoint() {
       <View style={styles.container}>
         {/* Avatar */}
         <Image
-          source={{ uri: "https://cdn-icons-png.flaticon.com/512/847/847969.png" }} // Ícono de usuario
+          source={{ uri: "https://cdn-icons-png.flaticon.com/512/847/847969.png" }}
           style={styles.avatar}
         />
 
@@ -36,12 +40,16 @@ export default function EntryPoint() {
           placeholder="Username"
           placeholderTextColor="#aaa"
           style={styles.input}
+          value={username}
+          onChangeText={setUsername}
         />
         <TextInput
           placeholder="Password"
           placeholderTextColor="#aaa"
           secureTextEntry
           style={styles.input}
+          value={password}
+          onChangeText={setPassword}
         />
 
         {/* Opciones */}
@@ -55,7 +63,7 @@ export default function EntryPoint() {
         </View>
 
         {/* Botón Login */}
-        <TouchableOpacity style={styles.button} onPress={goToProfile}>
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>LOGIN</Text>
         </TouchableOpacity>
       </View>
