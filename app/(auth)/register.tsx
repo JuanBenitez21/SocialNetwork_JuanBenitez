@@ -32,7 +32,8 @@ export default function EntryPoint() {
     
     const success = await context.register(newUser, password);
     if (success) {
-      router.navigate('/(main)/home'); // Redirige a la página principal después de registrarse
+      //router.navigate('/(main)/home'); // Redirige a la página principal después de registrarse
+      router.navigate('/login'); // Redirige a la página de login después de registrarse
     }
     else {
       Alert.alert("Error", "No se pudo registrar al usuario. Por favor, intenta de nuevo.");
