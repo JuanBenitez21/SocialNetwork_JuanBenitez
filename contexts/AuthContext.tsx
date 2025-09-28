@@ -1,5 +1,8 @@
+// juanbenitez21/socialnetwork_juanbenitez/SocialNetwork_JuanBenitez-develop/contexts/AuthContext.tsx
+
 import { User } from "@/types/common.type";
 import { supabase } from "@/utils/supabase";
+import { decode } from 'base64-arraybuffer';
 import { createContext, useState } from "react";
 
 /**
@@ -15,7 +18,9 @@ interface AuthContextProps {
     /** Update user profile information */
     updateProfile: (profileData: Partial<User>) => Promise<boolean>,
     /** Set user state manually */
-    setUser: (user: User | null) => void
+    setUser: (user: User | null) => void,
+    /** Upload a file to Supabase Storage */
+    uploadStorage: (bucket: string, path: string, fileData: string, contentType: string) => Promise<string | null>;
 }
 
 /**
@@ -31,7 +36,7 @@ export const AuthContext = createContext({} as AuthContextProps);
 export const AuthProvider = ({ children }: any) => {
 
     /** Current user state - contains user profile data when authenticated */
-    const [user, setUser] = useState(null as any);
+    const [user, setUser] = useState<User | null>(null);
 
     /**
      * Authenticate user with email and password
@@ -64,7 +69,9 @@ export const AuthProvider = ({ children }: any) => {
                     setUser({
                         id: data.user.id,
                         email: data.user.email!,
-                        name: data.user.user_metadata.name || data.user.email!.split('@')[0]
+                        name: data.user.user_metadata.name || data.user.email!.split('@')[0],
+                        username: data.user.user_metadata.username || data.user.email!.split('@')[0],
+                        lastName: ''
                     });
                 } else {
                     // Set complete profile data
@@ -88,7 +95,8 @@ export const AuthProvider = ({ children }: any) => {
                 password,
                 options: {
                     data: {
-                        name: user.name
+                        name: user.name,
+                        username: user.username
                     }
                 }
             });
@@ -105,7 +113,7 @@ export const AuthProvider = ({ children }: any) => {
                         id: data.user.id,
                         email: user.email,
                         name: user.name,
-                        username: user.email.split('@')[0]
+                        username: user.username,
                     });
 
                 if (profileError) {
@@ -116,7 +124,9 @@ export const AuthProvider = ({ children }: any) => {
                 setUser({
                     id: data.user.id,
                     email: data.user.email!,
-                    name: user.name
+                    name: user.name,
+                    username: user.username,
+                    lastName: ''
                 });
                 return true;
             }
@@ -160,6 +170,35 @@ export const AuthProvider = ({ children }: any) => {
         }
     };
 
+    const uploadStorage = async (bucket: string, path: string, fileData: string, contentType: string) => {
+        try {
+            const { data, error } = await supabase.storage
+                .from(bucket)
+                .upload(path, decode(fileData), {
+                    contentType: contentType,
+                    upsert: true,
+                });
+
+            if (error) {
+                console.error('Storage upload error:', error.message);
+                return null;
+            }
+
+            if (data) {
+                const { data: publicUrlData } = supabase.storage
+                    .from(bucket)
+                    .getPublicUrl(path);
+
+                return publicUrlData.publicUrl;
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Unhandled storage error:', error);
+            return null;
+        }
+    };
+
     return <AuthContext.Provider
         value={{
             user,
@@ -167,6 +206,7 @@ export const AuthProvider = ({ children }: any) => {
             register,
             updateProfile,
             setUser,
+            uploadStorage,
         }}
     >
         {children}

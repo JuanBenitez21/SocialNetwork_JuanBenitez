@@ -1,34 +1,18 @@
-import * as ImagePicker from 'expo-image-picker';
+import CameraModal from '@/components/modalCamera';
 import React, { useState } from 'react';
-import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function PostScreen() {
   const [postText, setPostText] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const handleChooseImage = async () => {
-    // Pedir permisos para acceder a la galería
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitas dar permiso para acceder a la galería.');
-      return;
-    }
-
-    // Abrir la galería de imágenes
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
-    }
+  const handleImageSelected = (uri: string) => {
+    setSelectedImage(uri);
+    setIsModalVisible(false); // Importante: cierra el modal después de seleccionar la imagen.
   };
 
   const handlePost = () => {
-    // Aquí iría la lógica para enviar la publicación a un servidor
-    // Por ahora, solo mostraremos una alerta con los datos
     if (postText.trim() === '' && !selectedImage) {
       Alert.alert('Error', 'Debes escribir algo o seleccionar una imagen para publicar.');
       return;
@@ -39,40 +23,48 @@ export default function PostScreen() {
       `Texto: ${postText}\nImagen seleccionada: ${selectedImage ? 'Sí' : 'No'}`
     );
 
-    // Limpiar los campos después de la publicación
     setPostText('');
     setSelectedImage(null);
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Crear Nueva Publicación</Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       
-      {/* Campo de texto */}
-      <TextInput
-        style={styles.textInput}
-        placeholder="¿Qué tienes en mente hoy?"
-        placeholderTextColor="#999"
-        multiline
-        value={postText}
-        onChangeText={setPostText}
-      />
+      <View style={styles.container}>
+        <Text style={styles.title}>Crear Nueva Publicación</Text>
+        
+        <TextInput
+          style={styles.textInput}
+          placeholder="¿Qué tienes en mente hoy?"
+          placeholderTextColor="#999"
+          multiline
+          value={postText}
+          onChangeText={setPostText}
+        />
+        
+        {selectedImage && (
+          <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+        )}
+        
+        <TouchableOpacity
+          style={styles.imageButton}
+          onPress={() => setIsModalVisible(true)} // Ahora este botón solo abre el modal
+        >
+          <Text style={styles.imageButtonText}>Elegir Foto de la Galería</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.postButton} onPress={handlePost}>
+          <Text style={styles.postButtonText}>Publicar</Text>
+        </TouchableOpacity>
+        
+        <CameraModal
+          isVisible={isModalVisible}
+          onClose={() => setIsModalVisible(false)}
+          onImageSelected={handleImageSelected}
+        />
+      </View>
+      </ScrollView>
       
-      {/* Previsualización de la imagen */}
-      {selectedImage && (
-        <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
-      )}
-      
-      {/* Botón para seleccionar imagen */}
-      <TouchableOpacity style={styles.imageButton} onPress={handleChooseImage}>
-        <Text style={styles.imageButtonText}>Elegir Foto de la Galería</Text>
-      </TouchableOpacity>
-      
-      {/* Botón de publicar */}
-      <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-        <Text style={styles.postButtonText}>Publicar</Text>
-      </TouchableOpacity>
-    </View>
   );
 }
 
@@ -102,7 +94,7 @@ const styles = StyleSheet.create({
   },
   imagePreview: {
     width: '100%',
-    height: 200,
+    height: '100%',
     borderRadius: 10,
     marginBottom: 15,
     resizeMode: 'cover',

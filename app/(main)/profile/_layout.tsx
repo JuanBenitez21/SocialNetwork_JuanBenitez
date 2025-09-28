@@ -10,12 +10,6 @@ export default function ProfileStack() {
           headerShown: false, // Ocultar el encabezado por defecto
         }}
       />
-      <Stack.Screen
-        name="edit"
-        options={{
-          headerTitle: 'Editar Perfil',
-        }}
-      />
     </Stack>
   );
 }

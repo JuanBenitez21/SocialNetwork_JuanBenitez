@@ -1,11 +1,22 @@
+// juanbenitez21/socialnetwork_juanbenitez/SocialNetwork_JuanBenitez-develop/app/(main)/profile/edit.tsx
+
 import { AuthContext } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+// CAMBIO IMPORTANTE: Así se importa ahora
+import {
+    MediaTypeOptions,
+    launchCameraAsync,
+    launchImageLibraryAsync,
+    requestCameraPermissionsAsync,
+    requestMediaLibraryPermissionsAsync,
+    type ImagePickerOptions,
+    type ImagePickerResult
+} from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useContext, useState } from 'react';
 import {
     Alert,
     Image,
-    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -16,9 +27,8 @@ import {
 
 export default function EditProfile() {
     const router = useRouter();
-    const { user, updateProfile } = useContext(AuthContext);
+    const { user, updateProfile, uploadStorage } = useContext(AuthContext);
 
-    // Estados para los campos del formulario
     const [formData, setFormData] = useState({
         name: user?.name || '',
         username: user?.username || '',
@@ -29,69 +39,109 @@ export default function EditProfile() {
     });
 
     const [loading, setLoading] = useState(false);
+    const [newAvatar, setNewAvatar] = useState<{ uri: string; base64: string } | null>(null);
 
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const selectImage = async () => {
+        Alert.alert(
+            "Seleccionar Imagen",
+            "Elige una opción para tu foto de perfil",
+            [
+                { text: "Tomar Foto", onPress: () => pickImage('camera') },
+                { text: "Elegir de la Galería", onPress: () => pickImage('gallery') },
+                { text: "Cancelar", style: "cancel" }
+            ]
+        );
+    };
+
+    const pickImage = async (source: 'camera' | 'gallery') => {
+        let result: ImagePickerResult;
+        const options: ImagePickerOptions = {
+            mediaTypes: MediaTypeOptions.Images, // CORREGIDO: Usamos la importación correcta
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 1,
+            base64: true,
+        };
+
+        if (source === 'camera') {
+            const { status } = await requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permiso denegado', 'Necesitas dar permiso para acceder a la cámara.');
+                return;
+            }
+            result = await launchCameraAsync(options);
+        } else {
+            const { status } = await requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permiso denegado', 'Necesitas dar permiso para acceder a la galería.');
+                return;
+            }
+            result = await launchImageLibraryAsync(options);
+        }
+
+        if (!result.canceled && result.assets && result.assets[0].base64) {
+            setNewAvatar({
+                uri: result.assets[0].uri,
+                base64: result.assets[0].base64
+            });
+        }
+    };
+
     const handleSave = async () => {
-        // Validaciones básicas
         if (!formData.name.trim()) {
             Alert.alert('Error', 'El nombre es requerido');
             return;
         }
-
-        if (formData.username && formData.username.length < 3) {
-            Alert.alert('Error', 'El nombre de usuario debe tener al menos 3 caracteres');
-            return;
-        }
-
         setLoading(true);
 
         try {
+            let avatarUrlToUpdate = user?.avatar_url;
+
+            if (newAvatar && user?.id) {
+                console.log("Iniciando subida de nueva imagen...");
+                const fileExt = newAvatar.uri.split('.').pop() || 'jpg';
+                const contentType = `image/${fileExt}`;
+                const fileName = `${user.id}_avatar_${Date.now()}.${fileExt}`;
+
+                const newPublicUrl = await uploadStorage('avatars', fileName, newAvatar.base64, contentType);
+
+                if (newPublicUrl) {
+                    console.log('Imagen subida con éxito. URL:', newPublicUrl);
+                    avatarUrlToUpdate = newPublicUrl;
+                } else {
+                    Alert.alert('Error', 'No se pudo subir la nueva imagen de perfil.');
+                    setLoading(false);
+                    return;
+                }
+            }
+            
+            console.log("Actualizando perfil...");
             const success = await updateProfile({
                 name: formData.name.trim(),
                 username: formData.username.trim() || undefined,
                 bio: formData.bio.trim() || undefined,
                 website: formData.website.trim() || undefined,
                 location: formData.location.trim() || undefined,
-                phone: formData.phone.trim() || undefined
+                phone: formData.phone.trim() || undefined,
+                avatar_url: avatarUrlToUpdate
             });
 
             if (success) {
-                Alert.alert(
-                    'Éxito',
-                    'Perfil actualizado correctamente',
-                    [
-                        {
-                            text: 'OK',
-                            onPress: () => router.back()
-                        }
-                    ]
-                );
+                Alert.alert('Éxito', 'Perfil actualizado correctamente', [{ text: 'OK', onPress: () => router.back() }]);
             } else {
                 Alert.alert('Error', 'No se pudo actualizar el perfil. Intenta de nuevo.');
             }
-
         } catch (error: any) {
-            console.error('Update profile error:', error);
-            const errorMessage = error?.message || 'Ocurrió un error inesperado. Intenta de nuevo.';
+            console.error('Error al guardar el perfil:', error);
+            const errorMessage = error?.message || 'Ocurrió un error inesperado.';
             Alert.alert('Error', errorMessage);
         } finally {
             setLoading(false);
         }
-    };
-
-    const selectImage = () => {
-        Alert.alert(
-            'Cambiar foto de perfil',
-            'Selecciona una opción',
-            [
-                { text: 'Cámara', onPress: () => console.log('Camera selected') },
-                { text: 'Galería', onPress: () => console.log('Gallery selected') },
-                { text: 'Cancelar', style: 'cancel' }
-            ]
-        );
     };
 
     return (
@@ -99,9 +149,7 @@ export default function EditProfile() {
             <View style={styles.avatarSection}>
                 <TouchableOpacity onPress={selectImage} style={styles.avatarContainer}>
                     <Image
-                        source={{
-                            uri: user?.avatar_url || 'https://via.placeholder.com/100/e1e1e1/666?text=User'
-                        }}
+                        source={{ uri: newAvatar?.uri || user?.avatar_url || 'https://via.placeholder.com/100/e1e1e1/666?text=User' }}
                         style={styles.avatar}
                     />
                     <View style={styles.avatarOverlay}>
@@ -113,7 +161,8 @@ export default function EditProfile() {
                 </TouchableOpacity>
             </View>
             <View style={styles.form}>
-                <View style={styles.fieldContainer}>
+                 {/* El resto del JSX no necesita cambios */}
+                 <View style={styles.fieldContainer}>
                     <Text style={styles.label}>Nombre *</Text>
                     <TextInput
                         style={styles.input}
@@ -212,37 +261,21 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#fff',
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e1e1e1',
-        paddingTop: Platform.OS === 'ios' ? 50 : 12,
-    },
-    backButton: {
-        padding: 4,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#333',
-    },
     saveButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        alignContent: "center",
-        alignItems: "center"
+        backgroundColor: '#007AFF',
+        borderRadius: 8,
+        paddingVertical: 14,
+        alignItems: 'center',
+        marginHorizontal: 16,
+        marginTop: 10,
     },
     saveButtonText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#007AFF',
+        color: '#fff',
     },
     buttonDisabled: {
-        opacity: 0.5,
+        backgroundColor: '#a9d2ff',
     },
     avatarSection: {
         alignItems: 'center',

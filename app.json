@@ -1,5 +1,6 @@
 {
   "expo": {
+    
     "name": "social-network",
     "slug": "social-network",
     "version": "1.0.0",
@@ -11,6 +12,7 @@
     "ios": {
       "supportsTablet": true
     },
+    
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -33,7 +35,9 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,5 +1,6 @@
 // types/common.type.ts
 export interface User {
+    id: string, // <-- AÑADE ESTA LÍNEA
     email: string,
     username: string,
     name: string,
