@@ -37,7 +37,7 @@ export default function MainLayout() {
             </Pressable>
           </Link>
 
-          <Link href="/(main)/chat" asChild>
+          <Link href="/(main)/chats" asChild>
             <Pressable
               style={[
                 styles.navBarButton,
