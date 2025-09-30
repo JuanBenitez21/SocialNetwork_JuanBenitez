@@ -9,6 +9,8 @@ import {
 } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+
+
 export default function MainLayout() {
   const segments = useSegments();
   const activePath = segments[segments.length - 1];
