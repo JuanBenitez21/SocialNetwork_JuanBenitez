@@ -14,6 +14,7 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      
       {/* Botón de editar perfil */}
       <View style={styles.editButtonContainer}>
         <TouchableOpacity 
@@ -21,10 +22,9 @@ export default function ProfileScreen() {
           style={styles.editButton}
         >
           <Edit size={20} color="#007AFF" />
-          <Text style={styles.editButtonText}>Editar Perfil</Text>
+          <Text style={styles.editButtonText}>Editar</Text>
         </TouchableOpacity>
       </View>
-
       {/* Sección superior del perfil */}
       <View style={styles.header}>
         <Image
@@ -35,6 +35,7 @@ export default function ProfileScreen() {
         <Text style={styles.usernameText}>@{user?.username}</Text>
         {user?.bio && <Text style={styles.profileBio}>{user.bio}</Text>}
       </View>
+      
 
       {/* Información del usuario */}
       <View style={styles.infoContainer}>
@@ -92,6 +93,7 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'flex-end',
     backgroundColor: '#fff',
+    marginTop: 40,
   },
   editButton: {
     flexDirection: 'row',
@@ -112,6 +114,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     marginBottom: 10,
+    marginTop: 0,
   },
   profileImage: {
     width: 120,
@@ -120,6 +123,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 3,
     borderColor: "#ccc",
+    
   },
   profileName: {
     fontSize: 24,
