@@ -12,18 +12,17 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 export default function MainLayout() {
   const pathname = usePathname();
 
-  // Lógica más segura y directa para determinar si la barra de navegación debe ocultarse.
-  // El '?' (optional chaining) previene errores si `pathname` es nulo temporalmente.
+  // Lógica corregida para determinar si la barra de navegación debe ocultarse.
   const isNavBarHidden =
-    pathname?.startsWith('app/(main)/chats/chat/[id].tsx') || // Ocultar en un chat individual
-    pathname === 'app/(main)/profile/edit.tsx';           // Ocultar al editar el perfil
+    pathname.startsWith('/chats/chat/') || // Ocultar en un chat individual
+    pathname === '/profile/edit';           // Ocultar al editar el perfil
 
   // Lógica para determinar qué ícono está activo
-  const isHomeActive = pathname === '/(main)/home';
-  const isChatsActive = pathname?.startsWith('/(main)/chats');
-  const isNewPostActive = pathname === '/(main)/newPost';
-  const isReelsActive = pathname === '/(main)/reels';
-  const isProfileActive = pathname?.startsWith('/(main)/profile');
+  const isHomeActive = pathname === '/home';
+  const isChatsActive = pathname.startsWith('/chats');
+  const isNewPostActive = pathname === '/newPost';
+  const isReelsActive = pathname === '/reels';
+  const isProfileActive = pathname.startsWith('/profile');
 
   return (
     <>
