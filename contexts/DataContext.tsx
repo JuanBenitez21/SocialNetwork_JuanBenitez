@@ -1,4 +1,3 @@
-// contexts/DataContext.tsx
 import { supabase } from "@/utils/supabase";
 import { createContext, useContext, useEffect, useState } from "react";
 import { AuthContext } from "./AuthContext";
@@ -21,12 +20,31 @@ export const DataProvider = ({ children }: any) => {
     useEffect(() => {
         if (user) {
             getChats();
+
+            // Suscripción a nuevos mensajes para actualizar la lista de chats
+            const messageChannel = supabase
+                .channel('public:messages')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
+                    (payload) => {
+                        // Cuando llega un nuevo mensaje, volvemos a cargar los chats para reordenarlos
+                        getChats();
+                    }
+                )
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(messageChannel);
+            };
         }
     }, [user]);
 
     const getUsers = async () => {
         try {
-            const { data, error } = await supabase.from("profiles").select("*");
+            // Excluimos al usuario actual de la lista
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("*")
+                .neq('id', user?.id);
             if (error) throw error;
             return data || [];
         } catch (error) {
@@ -39,8 +57,11 @@ export const DataProvider = ({ children }: any) => {
         try {
             const { data, error } = await supabase
                 .from("chats")
-                .select("*, user1:profiles!user_id_1(*), user2:profiles!user_id_2(*), messages(*)")
-                .or(`user_id_1.eq.${user?.id},user_id_2.eq.${user?.id}`);
+                // Ordenamos los chats por la fecha del último mensaje para que los más recientes aparezcan primero
+                .select("*, user1:profiles!user_id_1(*), user2:profiles!user_id_2(*), messages(*, profile:profiles!sent_by(*))")
+                .or(`user_id_1.eq.${user?.id},user_id_2.eq.${user?.id}`)
+                .order('created_at', { foreignTable: 'messages', ascending: false });
+
 
             if (error) throw error;
 
@@ -62,9 +83,13 @@ export const DataProvider = ({ children }: any) => {
         try {
             const { data, error } = await supabase.from('chats').insert([
                 { user_id_1: user?.id, user_id_2: userId }
-            ]).select();
+            ]).select().single(); // Usamos .single() para obtener un solo objeto
+
             if (error) throw error;
-            return data[0];
+            
+            // Después de crear el chat, actualizamos la lista
+            await getChats();
+            return data;
         } catch (error) {
             console.log(error);
         }
