@@ -12,6 +12,7 @@ import {
     Alert,
     FlatList,
     KeyboardAvoidingView,
+    Modal, // <-- 1. Importa el Modal
     Platform,
     StyleSheet,
     Text,
@@ -29,10 +30,15 @@ export default function ChatScreen() {
     const [newMessage, setNewMessage] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const [imagePreview, setImagePreview] = useState<ImagePicker.ImagePickerAsset | null>(null);
+    
+    // --- 2. Nuevos estados para el Modal ---
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     const { user, uploadStorage } = useContext(AuthContext);
     const flatListRef = useRef<FlatList>(null);
 
+    // ... (El resto de los useEffects y funciones se mantienen igual) ...
     useEffect(() => {
         if (!chatId) return;
 
@@ -129,23 +135,17 @@ export default function ChatScreen() {
             setNewMessage('');
         }
     };
-
+    
     const handleSendImage = async () => {
-        // --- CORRECCIÓN DEFINITIVA ---
-        // 1. Verificamos que tanto el objeto de la imagen como su base64 existen.
         if (!imagePreview || !imagePreview.base64 || !user) {
             Alert.alert("Error", "No se pudo procesar la imagen. Por favor, intenta de nuevo.");
-            if (imagePreview) setImagePreview(null); // Limpia si es inválido
+            if (imagePreview) setImagePreview(null);
             return;
         }
 
         setIsUploading(true);
-        
-        // 2. Guardamos los datos en constantes. TypeScript ahora sabe que son seguros.
         const assetToUpload = imagePreview;
-        const base64Data = imagePreview.base64; // <- Esta variable ahora es de tipo 'string'
-        
-        // 3. Limpiamos la UI
+        const base64Data = imagePreview.base64;
         setImagePreview(null); 
 
         try {
@@ -153,39 +153,36 @@ export default function ChatScreen() {
             const contentType = `image/${fileExt}`;
             const fileName = `chat_${chatId}_${Date.now()}.${fileExt}`;
 
-            // 4. Usamos la variable segura para la subida
             const publicUrl = await uploadStorage('chat_media', fileName, base64Data, contentType);
 
-            if (!publicUrl) {
-                throw new Error("No se pudo obtener la URL de la imagen.");
-            }
+            if (!publicUrl) throw new Error("No se pudo obtener la URL de la imagen.");
 
             const { data: messageData, error: messageError } = await supabase
-                .from('messages')
-                .insert({ sent_by: user.id, chat_id: chatId, text: null })
-                .select()
-                .single();
+                .from('messages').insert({ sent_by: user.id, chat_id: chatId, text: null }).select().single();
 
-            if (messageError || !messageData) {
-                throw new Error(messageError?.message || "Error al crear el mensaje para la imagen.");
-            }
+            if (messageError || !messageData) throw new Error(messageError?.message || "Error al crear el mensaje para la imagen.");
 
-            const { error: mediaError } = await supabase.from('media').insert({
-                message_id: messageData.id,
-                url: publicUrl,
-                type: 'image'
-            });
+            const { error: mediaError } = await supabase.from('media').insert({ message_id: messageData.id, url: publicUrl, type: 'image' });
 
-            if (mediaError) {
-                throw new Error(mediaError.message);
-            }
+            if (mediaError) throw new Error(mediaError.message);
         } catch (error: any) {
             console.error("Error sending image:", error);
             Alert.alert("Error", "No se pudo enviar la imagen. " + error.message);
-            setImagePreview(assetToUpload); // Si falla, restauramos la preview
+            setImagePreview(assetToUpload);
         } finally {
             setIsUploading(false);
         }
+    };
+
+    // --- 3. Funciones para abrir y cerrar el modal ---
+    const openImageModal = (imageUrl: string) => {
+        setSelectedImage(imageUrl);
+        setModalVisible(true);
+    };
+
+    const closeImageModal = () => {
+        setModalVisible(false);
+        setSelectedImage(null);
     };
 
     return (
@@ -204,13 +201,16 @@ export default function ChatScreen() {
                     return (
                         <View style={[styles.messageBubble, isMyMessage ? styles.myMessage : styles.theirMessage]}>
                             {hasImage ? (
-                                <Image
-                                    source={{ uri: item.media[0].url }}
-                                    style={styles.image}
-                                    placeholder={{ blurhash }}
-                                    contentFit="cover"
-                                    transition={300}
-                                />
+                                // --- 4. Hacemos la imagen presionable ---
+                                <TouchableOpacity onPress={() => openImageModal(item.media[0].url)}>
+                                    <Image
+                                        source={{ uri: item.media[0].url }}
+                                        style={styles.image}
+                                        placeholder={{ blurhash }}
+                                        contentFit="cover"
+                                        transition={300}
+                                    />
+                                </TouchableOpacity>
                             ) : (
                                 <Text style={isMyMessage ? styles.myMessageText : styles.theirMessageText}>
                                     {item.text}
@@ -248,11 +248,30 @@ export default function ChatScreen() {
                     {isUploading ? <ActivityIndicator size="small" color="#007AFF"/> : <Text style={styles.sendButtonText}>Enviar</Text>}
                 </TouchableOpacity>
             </View>
+
+            {/* --- 5. Añadimos el componente Modal al final --- */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={modalVisible}
+                onRequestClose={closeImageModal}
+            >
+                <View style={styles.modalContainer}>
+                    <Image
+                        source={{ uri: selectedImage || undefined }}
+                        style={styles.modalImage}
+                        contentFit="contain"
+                    />
+                    <TouchableOpacity style={styles.modalCloseButton} onPress={closeImageModal}>
+                        <Ionicons name="close" size={40} color="white" />
+                    </TouchableOpacity>
+                </View>
+            </Modal>
+
         </KeyboardAvoidingView>
     );
 }
 
-// Los estilos se mantienen igual que en la respuesta anterior
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -342,5 +361,22 @@ const styles = StyleSheet.create({
         width: 200,
         height: 200,
         borderRadius: 16,
-    }
+    },
+    // --- NUEVOS ESTILOS PARA EL MODAL ---
+    modalContainer: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalImage: {
+        width: '95%',
+        height: '80%',
+    },
+    modalCloseButton: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        padding: 10,
+    },
 });
