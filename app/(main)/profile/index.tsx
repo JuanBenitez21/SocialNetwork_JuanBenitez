@@ -1,21 +1,21 @@
+// juanbenitez21/socialnetwork_juanbenitez/SocialNetwork_JuanBenitez-testeodeFrente/app/(main)/profile/index.tsx
+
 import { AuthContext } from "@/contexts/AuthContext";
+import { DataContext } from "@/contexts/DataContext";
 import { useRouter } from "expo-router";
 import { Edit, Globe, Mail, MapPin } from "lucide-react-native";
 import React, { useContext } from "react";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-export default function ProfileScreen() {
+// Componente para la cabecera del perfil
+const ProfileHeader = () => {
   const { user } = useContext(AuthContext);
   const router = useRouter();
 
-  if (!user) {
-    return <Text>Cargando perfil...</Text>;
-  }
+  if (!user) return null;
 
   return (
-    <ScrollView style={styles.container}>
-      
-      {/* Botón de editar perfil */}
+    <>
       <View style={styles.editButtonContainer}>
         <TouchableOpacity 
           onPress={() => router.navigate('/(main)/profile/edit')}
@@ -25,10 +25,9 @@ export default function ProfileScreen() {
           <Text style={styles.editButtonText}>Editar</Text>
         </TouchableOpacity>
       </View>
-      {/* Sección superior del perfil */}
       <View style={styles.header}>
         <Image
-          source={{ uri: user?.avatar_url || "https://i.pravatar.cc/150?u=a" }} // Usamos avatar_url del usuario
+          source={{ uri: user?.avatar_url || "https://i.pravatar.cc/150?u=a" }}
           style={styles.profileImage}
         />
         <Text style={styles.profileName}>{user?.name} {user?.lastName}</Text>
@@ -36,8 +35,6 @@ export default function ProfileScreen() {
         {user?.bio && <Text style={styles.profileBio}>{user.bio}</Text>}
       </View>
       
-
-      {/* Información del usuario */}
       <View style={styles.infoContainer}>
         <View style={styles.infoRow}>
           <Mail size={18} color="#666" />
@@ -57,7 +54,6 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      {/* Sección de estadísticas o publicaciones */}
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
           <Text style={styles.statNumber}>{user?.posts_count ?? 0}</Text>
@@ -73,14 +69,40 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Sección de galería de publicaciones (vacía por ahora) */}
-      <View style={styles.gallery}>
-        <Text style={styles.galleryTitle}>Mis Publicaciones</Text>
-        <View style={styles.galleryGrid}>
-          {/* Aquí se mostrarían las publicaciones del usuario */}
-        </View>
-      </View>
-    </ScrollView>
+      <Text style={styles.galleryTitle}>Mis Publicaciones</Text>
+    </>
+  );
+};
+
+export default function ProfileScreen() {
+  const { user } = useContext(AuthContext);
+  const { posts } = useContext(DataContext);
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text>Cargando perfil...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const userPosts = posts.filter(post => post.user_id === user.id);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={userPosts}
+        ListHeaderComponent={<ProfileHeader />}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.postImageContainer}>
+            <Image source={{ uri: item.image_url }} style={styles.postImage} />
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.id}
+        numColumns={3}
+        contentContainerStyle={styles.galleryGrid}
+      />
+    </SafeAreaView>
   );
 }
 
@@ -93,7 +115,7 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'flex-end',
     backgroundColor: '#fff',
-    marginTop: 40,
+    marginTop: 10,
   },
   editButton: {
     flexDirection: 'row',
@@ -114,7 +136,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     marginBottom: 10,
-    marginTop: 0,
   },
   profileImage: {
     width: 120,
@@ -123,7 +144,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 3,
     borderColor: "#ccc",
-    
   },
   profileName: {
     fontSize: 24,
@@ -181,25 +201,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#888",
   },
-  gallery: {
-    padding: 10,
-  },
   galleryTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
     color: "#333",
+    paddingHorizontal: 10,
   },
   galleryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    paddingHorizontal: 5,
+  },
+  postImageContainer: {
+    width: '33.33%',
+    padding: 2,
   },
   postImage: {
-    width: "32%",
+    width: "100%",
     aspectRatio: 1,
     backgroundColor: "#ccc",
-    marginBottom: 10,
-    borderRadius: 8,
+    borderRadius: 4,
   },
 });

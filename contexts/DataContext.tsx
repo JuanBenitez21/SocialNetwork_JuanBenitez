@@ -1,13 +1,18 @@
+// juanbenitez21/socialnetwork_juanbenitez/SocialNetwork_JuanBenitez-testeodeFrente/contexts/DataContext.tsx
+
 import { supabase } from "@/utils/supabase";
 import { createContext, useContext, useEffect, useState } from "react";
 import { AuthContext } from "./AuthContext";
 
 interface DataContextProps {
     chats: any[],
+    posts: any[], // <-- AÑADE ESTA LÍNEA
     getUsers: () => Promise<any[]>,
     getChats: () => Promise<any[]>,
     getSingleChat: (id: string) => any,
     createChat: (userId: string) => Promise<any>
+    getPosts: () => Promise<any[]>, // <-- AÑADE ESTA LÍNEA
+    createPost: (content: string, imageUrl: string) => Promise<any>, // <-- AÑADE ESTA LÍNEA
 }
 
 export const DataContext = createContext({} as DataContextProps);
@@ -15,11 +20,13 @@ export const DataContext = createContext({} as DataContextProps);
 export const DataProvider = ({ children }: any) => {
 
     const [chats, setChats] = useState<any[]>([]);
+    const [posts, setPosts] = useState<any[]>([]); // <-- AÑADE ESTA LÍNEA
     const { user } = useContext(AuthContext);
 
     useEffect(() => {
         if (user) {
             getChats();
+            getPosts(); // <-- AÑADE ESTA LÍNEA
 
             // Suscripción a nuevos mensajes para actualizar la lista de chats
             const messageChannel = supabase
@@ -95,13 +102,62 @@ export const DataProvider = ({ children }: any) => {
         }
     }
 
+    // FUNCIÓN PARA OBTENER LAS PUBLICACIONES
+    const getPosts = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('posts')
+                .select('*, user:profiles(*), likes(*), comments(*, user:profiles(*))')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            
+            if (data) {
+                setPosts(data);
+                return data;
+            }
+        } catch (error) {
+            console.log(error);
+        }
+        return [];
+    }
+
+    // FUNCIÓN PARA CREAR UNA PUBLICACIÓN
+    const createPost = async (content: string, imageUrl: string) => {
+        if (!user) return null;
+
+        try {
+            const { data, error } = await supabase
+                .from('posts')
+                .insert({
+                    content,
+                    image_url: imageUrl,
+                    user_id: user.id,
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            
+            await getPosts(); // Actualizamos la lista de posts
+            return data;
+        } catch (error) {
+            console.log(error);
+            return null;
+        }
+    }
+
+
     return <DataContext.Provider
         value={{
             chats,
+            posts, // <-- AÑADE ESTA LÍNEA
             getUsers,
             getChats,
             getSingleChat,
-            createChat
+            createChat,
+            getPosts, // <-- AÑADE ESTA LÍNEA
+            createPost // <-- AÑADE ESTA LÍNEA
         }}
     >
         {children}

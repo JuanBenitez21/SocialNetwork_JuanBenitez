@@ -1,3 +1,5 @@
+// juanbenitez21/socialnetwork_juanbenitez/SocialNetwork_JuanBenitez-testeodeFrente/components/modalCamera.tsx
+
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
@@ -6,7 +8,7 @@ import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 interface CameraModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onImageSelected: (uri: string) => void;
+  onImageSelected: (asset: ImagePicker.ImagePickerAsset) => void; // <-- CAMBIO AQUÍ
 }
 
 export default function CameraModal({
@@ -32,14 +34,24 @@ export default function CameraModal({
 
   const handleTakePicture = async () => {
     if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync();
-      if (photo?.uri) {
-        onImageSelected(photo.uri);
+      // Tomamos la foto con base64 incluido
+      const photo = await cameraRef.current.takePictureAsync({ base64: true });
+      if (photo) {
+        // Creamos un objeto compatible con ImagePickerAsset
+        const asset = {
+          uri: photo.uri,
+          base64: photo.base64,
+          width: photo.width,
+          height: photo.height,
+        } as ImagePicker.ImagePickerAsset;
+
+        onImageSelected(asset); // <-- CAMBIO AQUÍ
         setCameraIsActive(false);
         onClose();
       }
     }
   };
+
 
   const toggleCameraType = () => {
     setCameraType((current: CameraType) => (current === 'back' ? 'front' : 'back'));
@@ -54,12 +66,14 @@ export default function CameraModal({
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
+      allowsEditing: true, // Permitir edición para asegurar el aspect ratio
+      aspect: [4, 5], // Aspect ratio de post de Instagram
       quality: 1,
+      base64: true, // <-- MUY IMPORTANTE
     });
 
     if (!result.canceled) {
-      onImageSelected(result.assets[0].uri);
+      onImageSelected(result.assets[0]); // <-- CAMBIO AQUÍ
       onClose();
     }
   };
@@ -73,6 +87,7 @@ export default function CameraModal({
     return <Text>Cargando permisos...</Text>;
   }
 
+  // ... el resto del componente se mantiene igual ...
   return (
     <Modal
       animationType="slide"
@@ -96,7 +111,7 @@ export default function CameraModal({
           </View>
         ) : (
           <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Cambiar Imagen de Perfil</Text>
+            <Text style={styles.modalTitle}>Crear Publicación</Text>
             <TouchableOpacity style={styles.button} onPress={handleCameraPress}>
               <Text style={styles.textStyle}>Tomar Foto</Text>
             </TouchableOpacity>
@@ -120,76 +135,76 @@ export default function CameraModal({
 }
 
 const styles = StyleSheet.create({
-  centeredView: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalView: {
-    width: '100%',
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+    centeredView: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  button: {
-    width: '100%',
-    borderRadius: 10,
-    padding: 15,
-    elevation: 2,
-    backgroundColor: '#f0f0f0',
-    marginBottom: 10,
-  },
-  cancelButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  textStyle: {
-    color: '#007AFF',
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  cancelText: {
-    color: '#ff3b30',
-  },
-  modalTitle: {
-    marginBottom: 15,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  cameraContainer: {
-    flex: 1,
-    width: '100%',
-  },
-  camera: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 30,
-  },
-  cameraButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 15,
-    borderRadius: 10,
-  },
-  captureButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 10,
-  },
-});
+    modalView: {
+      width: '100%',
+      backgroundColor: 'white',
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 35,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    button: {
+      width: '100%',
+      borderRadius: 10,
+      padding: 15,
+      elevation: 2,
+      backgroundColor: '#f0f0f0',
+      marginBottom: 10,
+    },
+    cancelButton: {
+      backgroundColor: '#fff',
+      borderWidth: 1,
+      borderColor: '#ccc',
+    },
+    textStyle: {
+      color: '#007AFF',
+      fontWeight: 'bold',
+      textAlign: 'center',
+    },
+    cancelText: {
+      color: '#ff3b30',
+    },
+    modalTitle: {
+      marginBottom: 15,
+      textAlign: 'center',
+      fontSize: 20,
+      fontWeight: 'bold',
+    },
+    cameraContainer: {
+      flex: 1,
+      width: '100%',
+    },
+    camera: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    buttonContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 30,
+    },
+    cameraButton: {
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      padding: 15,
+      borderRadius: 10,
+    },
+    captureButton: {
+      backgroundColor: '#007AFF',
+      padding: 15,
+      borderRadius: 10,
+    },
+  });
