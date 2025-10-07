@@ -1,3 +1,5 @@
+// app/(main)/chats/chat/[id].tsx
+
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +28,8 @@ export default function ChatScreen() {
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [isUploading, setIsUploading] = useState(false);
+    const [imagePreview, setImagePreview] = useState<ImagePicker.ImagePickerAsset | null>(null);
+
     const { user, uploadStorage } = useContext(AuthContext);
     const flatListRef = useRef<FlatList>(null);
 
@@ -82,6 +86,14 @@ export default function ChatScreen() {
         else setMessages(data);
     };
 
+    const handleSend = async () => {
+        if (imagePreview) {
+            await handleSendImage();
+        } else if (newMessage.trim() !== '') {
+            await handleSendText();
+        }
+    };
+
     const handleSendText = async () => {
         if (newMessage.trim() === '' || !user) return;
         const textToSend = newMessage;
@@ -97,8 +109,8 @@ export default function ChatScreen() {
             setNewMessage(textToSend);
         }
     };
-    
-    const handlePickAndSendImage = async () => {
+
+    const handlePickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
             Alert.alert('Permiso denegado', 'Necesitas dar permiso para acceder a la galería.');
@@ -113,49 +125,66 @@ export default function ChatScreen() {
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-            const asset = result.assets[0];
+            setImagePreview(result.assets[0]);
+            setNewMessage('');
+        }
+    };
 
-            if (asset.base64 && user) {
-                setIsUploading(true);
-                try {
-                    const fileExt = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-                    const contentType = `image/${fileExt}`;
-                    const fileName = `chat_${chatId}_${Date.now()}.${fileExt}`;
+    const handleSendImage = async () => {
+        // --- CORRECCIÓN DEFINITIVA ---
+        // 1. Verificamos que tanto el objeto de la imagen como su base64 existen.
+        if (!imagePreview || !imagePreview.base64 || !user) {
+            Alert.alert("Error", "No se pudo procesar la imagen. Por favor, intenta de nuevo.");
+            if (imagePreview) setImagePreview(null); // Limpia si es inválido
+            return;
+        }
 
-                    const publicUrl = await uploadStorage('chat_media', fileName, asset.base64, contentType);
+        setIsUploading(true);
+        
+        // 2. Guardamos los datos en constantes. TypeScript ahora sabe que son seguros.
+        const assetToUpload = imagePreview;
+        const base64Data = imagePreview.base64; // <- Esta variable ahora es de tipo 'string'
+        
+        // 3. Limpiamos la UI
+        setImagePreview(null); 
 
-                    if (!publicUrl) {
-                        throw new Error("No se pudo obtener la URL de la imagen.");
-                    }
+        try {
+            const fileExt = assetToUpload.uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+            const contentType = `image/${fileExt}`;
+            const fileName = `chat_${chatId}_${Date.now()}.${fileExt}`;
 
-                    const { data: messageData, error: messageError } = await supabase
-                        .from('messages')
-                        .insert({ sent_by: user.id, chat_id: chatId, text: null })
-                        .select()
-                        .single();
+            // 4. Usamos la variable segura para la subida
+            const publicUrl = await uploadStorage('chat_media', fileName, base64Data, contentType);
 
-                    if (messageError || !messageData) {
-                        throw new Error(messageError?.message || "Error al crear el mensaje");
-                    }
-
-                    const { error: mediaError } = await supabase.from('media').insert({
-                        message_id: messageData.id,
-                        url: publicUrl,
-                        type: 'image'
-                    });
-
-                    if (mediaError) {
-                        throw new Error(mediaError.message);
-                    }
-                } catch (error: any) {
-                    console.error("Error sending image:", error);
-                    Alert.alert("Error", "No se pudo enviar la imagen. " + error.message);
-                } finally {
-                    setIsUploading(false);
-                }
-            } else {
-                Alert.alert("Error", "No se pudo procesar la imagen seleccionada, por favor intenta con otra.");
+            if (!publicUrl) {
+                throw new Error("No se pudo obtener la URL de la imagen.");
             }
+
+            const { data: messageData, error: messageError } = await supabase
+                .from('messages')
+                .insert({ sent_by: user.id, chat_id: chatId, text: null })
+                .select()
+                .single();
+
+            if (messageError || !messageData) {
+                throw new Error(messageError?.message || "Error al crear el mensaje para la imagen.");
+            }
+
+            const { error: mediaError } = await supabase.from('media').insert({
+                message_id: messageData.id,
+                url: publicUrl,
+                type: 'image'
+            });
+
+            if (mediaError) {
+                throw new Error(mediaError.message);
+            }
+        } catch (error: any) {
+            console.error("Error sending image:", error);
+            Alert.alert("Error", "No se pudo enviar la imagen. " + error.message);
+            setImagePreview(assetToUpload); // Si falla, restauramos la preview
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -193,9 +222,19 @@ export default function ChatScreen() {
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={styles.listContent}
             />
+            
+            {imagePreview && (
+                <View style={styles.previewContainer}>
+                    <Image source={{ uri: imagePreview.uri }} style={styles.previewImage} />
+                    <TouchableOpacity onPress={() => setImagePreview(null)} style={styles.previewCloseButton}>
+                        <Ionicons name="close-circle" size={28} color="#000" />
+                    </TouchableOpacity>
+                </View>
+            )}
+
             <View style={styles.inputContainer}>
-                <TouchableOpacity onPress={handlePickAndSendImage} style={styles.attachButton} disabled={isUploading}>
-                    {isUploading ? <ActivityIndicator size="small" /> : <Ionicons name="add" size={24} color="#007AFF" />}
+                <TouchableOpacity onPress={handlePickImage} style={styles.attachButton} disabled={isUploading || !!imagePreview}>
+                    <Ionicons name="add" size={24} color={isUploading || imagePreview ? '#ccc' : '#007AFF'} />
                 </TouchableOpacity>
                 <TextInput
                     style={styles.input}
@@ -203,15 +242,17 @@ export default function ChatScreen() {
                     onChangeText={setNewMessage}
                     placeholder="Escribe un mensaje..."
                     placeholderTextColor="#999"
+                    editable={!imagePreview}
                 />
-                <TouchableOpacity onPress={handleSendText} style={styles.sendButton}>
-                    <Text style={styles.sendButtonText}>Enviar</Text>
+                <TouchableOpacity onPress={handleSend} style={styles.sendButton} disabled={isUploading}>
+                    {isUploading ? <ActivityIndicator size="small" color="#007AFF"/> : <Text style={styles.sendButtonText}>Enviar</Text>}
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
     );
 }
 
+// Los estilos se mantienen igual que en la respuesta anterior
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -220,6 +261,25 @@ const styles = StyleSheet.create({
     listContent: {
         paddingVertical: 10,
         paddingHorizontal: 10,
+    },
+    previewContainer: {
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        backgroundColor: '#fff',
+        borderTopWidth: 1,
+        borderTopColor: '#e8e8e8',
+    },
+    previewImage: {
+        width: 80,
+        height: 80,
+        borderRadius: 10,
+    },
+    previewCloseButton: {
+        position: 'absolute',
+        top: 0,
+        right: 5,
+        backgroundColor: 'rgba(255,255,255,0.7)',
+        borderRadius: 14,
     },
     inputContainer: {
         flexDirection: 'row',

@@ -1,4 +1,3 @@
-// components/PostItem.tsx
 
 import { AuthContext } from '@/contexts/AuthContext';
 import { DataContext } from '@/contexts/DataContext';
@@ -10,34 +9,46 @@ import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 export default function PostItem({ post }: { post: any }) {
     const { user } = useContext(AuthContext);
     const { getPosts } = useContext(DataContext);
+
+    // Estado local para el contador de likes y si el usuario actual le ha dado like
     const [isLiked, setIsLiked] = useState(post.likes.some((like: any) => like.user_id === user?.id));
+    const [likeCount, setLikeCount] = useState(post.likes.length);
 
     const handleLike = async () => {
         if (!user) return;
 
+        // Copia del estado actual por si la petición falla
+        const currentlyLiked = isLiked;
+        const currentCount = likeCount;
+
+        // Actualización optimista: Cambia la UI inmediatamente
+        setIsLiked(!currentlyLiked);
+        setLikeCount(currentCount + (!currentlyLiked ? 1 : -1));
+
         try {
-            if (isLiked) {
-                // Si ya le dio like, se lo quitamos
+            if (currentlyLiked) {
+                // Si ya le dio like, se lo quitamos (Unlike)
                 const { error } = await supabase
                     .from('likes')
                     .delete()
                     .match({ post_id: post.id, user_id: user.id });
                 if (error) throw error;
-                setIsLiked(false);
             } else {
-                // Si no le ha dado like, lo agregamos
+                // Si no le ha dado like, lo agregamos (Like)
                 const { error } = await supabase
                     .from('likes')
                     .insert({ post_id: post.id, user_id: user.id });
                 if (error) throw error;
-                setIsLiked(true);
             }
-            getPosts(); // Actualizamos los posts
+            // Ya no es necesario llamar a getPosts(), el estado local se encarga de la UI.
+            // Esto hace la app mucho más rápida.
         } catch (error: any) {
-            Alert.alert('Error', error.message);
+            // Si hay un error, revertimos los cambios en la UI
+            setIsLiked(currentlyLiked);
+            setLikeCount(currentCount);
+            Alert.alert('Error', 'No se pudo procesar el "Me gusta".');
         }
     };
-
 
     return (
         <View style={styles.container}>
@@ -49,11 +60,13 @@ export default function PostItem({ post }: { post: any }) {
             <View style={styles.actions}>
                 <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
                     <Heart size={24} color={isLiked ? 'red' : 'black'} fill={isLiked ? 'red' : 'none'} />
-                    <Text>{post.likes_count}</Text>
+                    {/* Usamos el estado local para el contador */}
+                    <Text>{likeCount}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
                     <MessageCircle size={24} color="black" />
-                    <Text>{post.comments_count}</Text>
+                    {/* Aquí también deberías usar post.comments.length */}
+                    <Text>{post.comments.length}</Text>
                 </TouchableOpacity>
             </View>
             <Text style={styles.content}>{post.content}</Text>
@@ -95,6 +108,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginRight: 15,
+        gap: 5
     },
     content: {
         marginTop: 10,
